@@ -1,0 +1,11 @@
+genotypename: example_nobad0.4_gap0.2_biallelic.geno
+snpname: example_nobad0.4_gap0.2_biallelic.snp
+indivname: example_nobad0.4_gap0.2_biallelic.ind
+evecoutname: example_nobad0.4_gap0.2_biallelic.pca.evec
+evaloutname: example_nobad0.4_gap0.2_biallelic.eval
+altnormstyle: NO
+numoutevec: 10
+numoutlieriter: 5
+numoutlierevec: 10
+outliersigmathresh: 6
+qtmode: 0

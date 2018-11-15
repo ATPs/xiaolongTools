@@ -1,0 +1,9 @@
+#!/bin/bash
+#SBATCH -p long
+#SBATCH -n 1
+#SBATCH -N 1
+#SBATCH --mem=8g
+#SBATCH -o example_nobad0.4_gap0.2_biallelic_5.log
+
+cd /projects/omics/hesperia/for_xiaolongrun/5
+/projects/omics/hesperia/STRUCTURE/console/structure -K 5 -i example_nobad0.4_gap0.2_biallelic.struct -o output_5

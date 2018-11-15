@@ -1,0 +1,47 @@
+# FILES NEEDED BEFORE THE START
+# 1. the combined map file
+# 2. the list of samples in the combined map file. In addition to the sample ID, I also need the sex and the population ID. The information is not by default used for PCA and STRUCTURE, but they are needed for advanced analyses. The population ID is needed for treemix, where samples from the same population will be mixed. The sex should be M or F. In case of samples without such information, you can just put M by default. Initially, the population ID can be based on the morphology, i.e., what Nick has in his spread sheet. As the analysis goes on, you may have different definition of population ID, and you should update that in this file. 
+# 3. the length of each scaffold, which can be generated using:
+prepare_scaf_size.py [the combined map file]
+# the result will be in scaf_sizes
+ 
+# STEP1: check the coverage (completeness) of each specimen
+python step1_check_gap_fraction.py example
+# result will be in example.sample_coverage
+# check the result to decide a cutoff to remove the samples with very low coverage, and here I chose 0.4. I would suggest start with a higher cutoff (so that fewer but better samples are kept) in the begining, and later on try to lower the cutoff to include more samples once the whole picture is more clear
+
+# STEP2: remove the samples with low coverage
+python step2_remove_bad_specimens.py example 0.4
+# the result will be in example_nobad0.4
+
+# STEP3: remove the positions with high fraction of gaps.
+python step3_remove_gappy_positios.py example_nobad0.4 0.2
+# the result will be in example_nobad0.4_gap0.2
+#STRUCTURE and PCA are tolerate to gaps, but not that much gaps. I think the limit of gaps that can be allowed will vary for each project, but a gap fraction of 0.1 or 0.2 should be safe
+
+# STEP4: get biallelic loci (the positions with two possible nucleotides)
+python step4_get_biallelic_loci.py example_nobad0.4_gap0.2
+# the result will be in example_nobad0.4_gap0.2_biallelic
+# here we want to remove the positions that should be homozygous, but sequencing errors (especially when you have a large number of samples) will make homozygous positions look biallelic. We therefore require both possible nucleotides to be present in a certain number of specimens. For example, if you totally have 10 specimens and thus 20 nucleotides in a position. If the two possible alleles show up 12 and 8 times, respectively, you will likely trust it. However, if the two possible alleles show up 19 and 1 times, repectively, it is likely a homozygous position with 1 sequencing error. 
+# you may need to modify the two parameters "CUTOFF1" and "CUTOFF2" in the program for different projects.
+
+# STEP5: prepare PCA input
+python step5_prepare_pca.py example.list scaf_sizes example_nobad0.4_gap0.2_biallelic 
+# the result will be in example_nobad0.4_gap0.2_biallelic.geno example_nobad0.4_gap0.2_biallelic.ind example_nobad0.4_gap0.2_biallelic.snp
+
+# STEP6: run PCA
+/home/congq/software/EIG-6.1.4/bin/smartpca.perl -i example_nobad0.4_gap0.2_biallelic.geno -a example_nobad0.4_gap0.2_biallelic.snp -b example_nobad0.4_gap0.2_biallelic.ind -o example_nobad0.4_gap0.2_biallelic.pca -p example_nobad0.4_gap0.2_biallelic.plot -e example_nobad0.4_gap0.2_biallelic.eval -l example_nobad0.4_gap0.2_biallelic.log -snpweightoutname example_nobad0.4_gap0.2_biallelic.weight
+# the result will be in example_nobad0.4_gap0.2_biallelic.pca.evec, and it also generates a batch of other files which we do not quite check  
+# pay attention that PCA will remove some outliers by default. It is usually not a bad attempt if that outlier is not an important sample. If you do not want it to remove any sample, you can ask Jing. She recently told me that trick and I do not clearly remember it. 
+
+# STEP7: prepare STRUCTURE input
+python step7_prepare_structure_input.py example_nobad0.4_gap0.2_biallelic
+# the result will be example_nobad0.4_gap0.2_biallelic.struct
+
+# STEP8: prepare STRUCTURE runs
+python step8_prepare_structure_runs.py example_nobad0.4_gap0.2_biallelic
+# the result will be example_nobad0.4_gap0.2_biallelic_?.struct
+# you need to modify this script to prepare the job files suitable for the cluster you are using
+# by default this prepare the runs for population sizes 2-6. If you need larger population size, also need to modify the program
+# BE AWARE that STRUCTURE can only use one thread, so on the clusters that does not allow you to allocate for just 1 cpu, you want to combine several STRUCTURE runs in the same job. 
+ 
