@@ -1,6 +1,7 @@
 import numpy as np
 from multiprocessing import Pool
-
+import pickle
+import os
 
 def fileLine(filename):
     '''
@@ -11,12 +12,13 @@ def fileLine(filename):
             pass
     return i+1
 
-def read2Int8(filename,strand = 0,changeGap=True):
+def read2Int8(filename,strand = 0,changeGap=True, outfile=None):
     '''
     filename is a map file, each line with two bases 'A\t\A\n'
     if changGap is True, replace none 'ATCG' to '-'
     strand = 0 or 2, the first or the second strand
-    return a numpy array of int8
+    if outfile is None, do not output a file, else, save map file in binary format file
+    else, return a numpy array of int8
     '''
     maplines = fileLine(filename)
     mapBaseInt = np.zeros(maplines,dtype=np.uint8) #store bases in np.int8 format
@@ -29,7 +31,12 @@ def read2Int8(filename,strand = 0,changeGap=True):
             if nt not in 'ATCG':
                 nt = '-'
         mapBaseInt[n] = ord(nt)
-    return mapBaseInt
+    if outfile is not None:
+        with open(outfile,'wb') as f:
+            pickle.dump(mapBaseInt,f)
+            print('done')
+    else:
+        return mapBaseInt
 
 def npInt8toSeq(mapBaseInt):
     '''
@@ -37,7 +44,7 @@ def npInt8toSeq(mapBaseInt):
     '''
     return ''.join(chr(e) for e in mapBaseInt)
 
-def read2Int8s(filenames, strand=0, changeGap=True, threads=16):
+def read2Int8s(filenames, strand=0, changeGap=True, threads=16, outfolder=None):
     '''
     filename is list of map files, or a file storing the location of map files
     for each map file, each line with two bases 'A\t\A\n'
@@ -45,14 +52,24 @@ def read2Int8s(filenames, strand=0, changeGap=True, threads=16):
     strand = 0 or 2, the first or the second strand
     threads is the numbers of CPUs to use
     return a list of numpy array of int8
+    if outfolder is not None, save map file in binary format file, filename is the same as input files
     '''
     if type(filenames) is str:
         filenames = open(filenames).readlines()
         filenames = [e.strip() for e in filenames]
+    
     pool = Pool(threads)
-    mapBaseInts = pool.starmap(read2Int8, [(e, strand, changeGap) for e in filenames])
-    pool.close()
-    return mapBaseInts
+    
+    if outfolder is None:
+        mapBaseInts = pool.starmap(read2Int8, [(e, strand, changeGap,None) for e in filenames])
+        pool.close()
+        pool.join()
+        return mapBaseInts
+    else:
+        pool.starmap(read2Int8, [(e, strand, changeGap, os.path.join(outfolder,os.path.basename(e))) for e in filenames])
+        pool.close()
+        pool.join()
+        return None
 
 def parse2Int8(filenames, strand = 0, changeGap=True):
     '''
@@ -88,6 +105,32 @@ def countgap(filename,strand=0, outfile = None):
         return mapFileGapCout
     #else store the variable in file
     with open(outfile,'wb') as f:
-        import pickle
         pickle.dump(mapFileGapCout,f)
         print('done')
+
+def loadMapBinary(filename):
+    '''
+    filename is the binary format of np.int8 array, load it from the disk
+    '''
+    with open(filename,'rb') as f:
+        return pickle.load(f)
+
+def loadMapBinaries(filenames, threads=16):
+    '''
+    filename is list of map files, or a file storing the location of map files
+    return a list of np array with the sequences coding in np.int8
+    '''
+    if type(filenames) is str:
+        filenames = open(filenames).readlines()
+        filenames = [e.strip() for e in filenames]
+    if type(filenames) is not list:
+        print('wrong input format')
+        return None
+    pool = Pool(threads)
+    results = pool.map(loadMapBinary, filenames)
+    pool.close()
+    pool.join()
+    return results
+
+if __name__ == '__main__':
+    pass

@@ -44,7 +44,7 @@ def readMrBayesTree(file_in, file_out=None):
 
 if __name__ == '__main__':
     import argparse
-    parser = argparse.ArgumentParser(description='input a fasta file of MrBayes result, output a newick file. Only keep the probability at the branch sites as bootstrap values')
+    parser = argparse.ArgumentParser(description='input a MrBayes result, output a newick file. Only keep the probability at the branch sites as bootstrap values')
     parser.add_argument('-i','--input', help = 'input file of MrBayes result', required=True)
     parser.add_argument('-o','--output',help = 'location of the where the output file stored',default=None)
     f = parser.parse_args()
