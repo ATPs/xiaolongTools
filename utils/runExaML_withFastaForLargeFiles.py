@@ -30,7 +30,7 @@ def convertFasta2ExaMLinput(filename, outfile = None):
         fout.write(s.id + ' ' + str(s.seq)+'\n')
     fout.close()
 
-def runExaML(filename, referenceTree, threads=320, maxjobsperNode = 0,whichExaml=0):
+def runExaML(filename, referenceTree=None, threads=320, maxjobsperNode = 0,whichExaml=0):
     '''
     filename is a file of fasta file
     referenceTree is the reference tree to run ExaML
@@ -46,6 +46,21 @@ def runExaML(filename, referenceTree, threads=320, maxjobsperNode = 0,whichExaml
     outfile = os.path.join(folder,basename+'.ExaML')
     convertFasta2ExaMLinput(filename, outfile)
     
+    #generate random tree if referenceTree is None
+    if referenceTree is None:
+        referenceTree = filename + '.referenceTree'
+        from ete3 import Tree
+        from Bio import SeqIO
+        leafnames = [e.id for e in SeqIO.parse(filename,'fasta')]
+        t = Tree()
+        t.populate(len(leafnames),names_library=leafnames)
+        t.write(outfile=referenceTree)
+        
+    #delete .ExaML if exist
+    file_ExaML = basename + '.ExaML'
+    if os.path.exists(file_ExaML):
+        os.remove(file_ExaML)
+    
     #run ExaML
     os.system('module load openmpi/intel/3.1.1')
     if maxjobsperNode == 0:
@@ -57,7 +72,7 @@ def runExaML(filename, referenceTree, threads=320, maxjobsperNode = 0,whichExaml
 
 description = '''
     filename is a file of fasta file
-    referenceTree is the reference tree to run ExaML
+    referenceTree is the reference tree to run ExaML. if not provided, use ete3.Tree to generate a random tree
     process the fasta file and run ExaML
     folder is where to store the files. default the same as the input filename
     basename, prefix for output files, default the same as the input filename
@@ -68,7 +83,7 @@ if __name__ == '__main__':
     print(description)
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-i','--input', help = 'input file storing the location of aligned fasta file', required=True)
-    parser.add_argument('-r','--referenceTree', help = 'input reference Tree to guid ExaML', required=True)
+    parser.add_argument('-r','--referenceTree', help = 'input reference Tree to guid ExaML. If not provided, will generate a random tree as input', default=None)
     parser.add_argument('-T', '--threads',help = 'number of threads to run ExaML', default = 320, type=int)
     parser.add_argument('-j', '--maxjobsperNode',help = 'maxjobperNode, default 0, no limit', default = 0, type=int)
     parser.add_argument('-e','--whichExaml',help='which examl program to use. 0 for examl, 1 for examl-AVX, 2 for examl-OMP-AVX. default 0',default=0,type=int,choices=[0,1,2])

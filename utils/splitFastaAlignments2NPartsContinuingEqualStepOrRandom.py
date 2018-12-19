@@ -1,6 +1,8 @@
 
 from Bio import SeqIO
 import os
+import numpy as np
+from multiprocessing import Pool
 
 def splitStr2NpartsContinue(sequence,N):
     '''
@@ -43,7 +45,33 @@ def splitStr2NpartsRandomChoice(sequence, N, seed=0):
     sequences = splitStr2NpartsContinue(sequence,N)
     return sequences
 
-def splitAlignments2Nparts(filename, N=100, outfolder='.',baseNumberMin=0, seed = 0, method = 0):
+def splitFasta2Nparts(seq, N=100, baseNumberMin=0, seed = 0, method = 0):
+    '''
+    fasta is a seqIO input, split it to N parts
+    return in a list of str in fasta format that is ready to write
+    '''
+    sequence = str(seq.seq)
+    seq_id = seq.id
+    if method == 0:
+        sequences = splitStr2NpartsContinue(sequence,N)
+    elif method == 1:
+        sequences = splitStr2NpartsEqualStep(sequence,N)
+    elif method == 2:
+        sequences = splitStr2NpartsRandomChoice(sequence,N,seed)
+    else:
+        print('wrong method!')
+        quit()
+    
+    results = []
+    for i in range(len(sequences)):
+        if sum(map(lambda x:x in 'ATCG', sequences[i])) > baseNumberMin:
+            results.append('>'+seq_id+'\n'+sequences[i]+'\n')
+        else:
+            results.append('')
+    
+    return results
+
+def splitAlignments2Nparts(filename, N=100, outfolder='.',baseNumberMin=0, seed = 0, method = 0, threads = 16):
     '''
     filename is a alignment in fasta format. Split it to N alignments, each parts with almost the same number of bases
     output the files to outfolder. outfilename will be filename plus '.splitN.0/1/2/...'
@@ -52,6 +80,17 @@ def splitAlignments2Nparts(filename, N=100, outfolder='.',baseNumberMin=0, seed 
         os.makedirs(outfolder)
     fastaname = os.path.basename(filename)
     seqs = SeqIO.parse(filename,'fasta')
+    
+#    n = 0
+#    for i in seqs:
+#        n += 1
+#    print('totally sequences in alignment is',n)
+    
+#    seqs = SeqIO.parse(filename,'fasta')
+#    print('will use ', threads, 'CPUs to process the data')
+#    batches = np.array_split(list(range(n)), np.ceil(n/threads))
+#    print('process the data in ', len(batches), 'batches')
+    
     outfilenames = [os.path.join(outfolder,fastaname+'.split'+str(N)+'.'+str(i)) for i in range(N)]
     for outfilename in outfilenames:
         if os.path.exists(outfilename):
@@ -59,21 +98,40 @@ def splitAlignments2Nparts(filename, N=100, outfolder='.',baseNumberMin=0, seed 
             print(outfilename,'removed to store new file')
     outfiles = [open(e,'a') for e in outfilenames]
     
-    for seq in seqs:
-        sequence = str(seq.seq)
-        seq_id = seq.id
-        if method == 0:
-            sequences = splitStr2NpartsContinue(sequence,N)
-        elif method == 1:
-            sequences = splitStr2NpartsEqualStep(sequence,N)
-        elif method == 2:
-            sequences = splitStr2NpartsRandomChoice(sequence,N,seed)
-        else:
-            print('wrong method!')
-            quit()
-        for i in range(len(sequences)):
-            if sum(map(lambda x:x in 'ATCG', sequences[i])) > baseNumberMin:
-                outfiles[i].write('>'+seq_id+'\n'+sequences[i]+'\n')
+    pool = Pool(threads)
+    
+    ls_seq = []
+    for seqNNN, seq in enumerate(seqs):
+        ls_seq.append(seq)
+        print('append seq', seqNNN)
+        if len(ls_seq) == threads:
+            ls_results = pool.starmap(splitFasta2Nparts, [[seq, N, baseNumberMin, seed, method] for seq in ls_seq])
+            print('finish processing up to seq', seqNNN)
+            for results in ls_results:
+                for i,result in enumerate(results):
+                    outfiles[i].write(result)
+            ls_seq = []
+    
+    if len(ls_seq) >0:
+        ls_results = pool.starmap(splitFasta2Nparts, [[seq, N, baseNumberMin, seed, method] for seq in ls_seq])
+        for results in ls_results:
+            for i,result in enumerate(results):
+                outfiles[i].write(result)
+    
+#    for batchN, batch in enumerate(batches):
+#        for seqNum in batch:
+#            ls_seq.append(next(seqs))
+#        ls_results = pool.map(splitFasta2Nparts, [[seq, N, baseNumberMin, seed, method] for seq in ls_seq])
+#        for results in ls_results:
+#            for i,result in enumerate(results):
+#                outfiles[i].write(result)
+#        print('finished batch', batchN)
+#        ls_seq = []
+#    pool.close()
+##    for seq in seqs:
+##        results = splitFasta2Nparts(seq, N=N, baseNumberMin=baseNumberMin, seed = seed, method = method)
+##        for i,result in enumerate(results):
+##            outfiles[i].write(result)
     for f in outfiles:
         f.close()
     print("done!")
@@ -99,5 +157,6 @@ if __name__ == '__main__':
     parser.add_argument('-b','--baseNumberMin', help = 'minimum base numbers, default 0', default = 0, type=int)
     parser.add_argument('-s','--seed', help = 'seed for RandomChoice', default = 0, type=int)
     parser.add_argument('-m','--method', help = 'method to split the sequences. three choices, 0 for Continue, 1 for EqualStep, 2 for RandomChoice', default = 0, type=int, choices = [0,1,2])
+    parser.add_argument('-t','--threads', help = 'number of threads to use. default 16', default = 16, type=int)
     f = parser.parse_args()
-    splitAlignments2Nparts(filename=f.input, N=f.number, outfolder=f.output, baseNumberMin=f.baseNumberMin, seed=f.seed, method=f.method)
+    splitAlignments2Nparts(filename=f.input, N=f.number, outfolder=f.output, baseNumberMin=f.baseNumberMin, seed=f.seed, method=f.method, threads=f.threads)

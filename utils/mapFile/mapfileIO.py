@@ -44,6 +44,7 @@ def npInt8toSeq(mapBaseInt):
     '''
     return ''.join(chr(e) for e in mapBaseInt)
 
+
 def read2Int8s(filenames, strand=0, changeGap=True, threads=16, outfolder=None):
     '''
     filename is list of map files, or a file storing the location of map files
@@ -59,6 +60,8 @@ def read2Int8s(filenames, strand=0, changeGap=True, threads=16, outfolder=None):
         filenames = [e.strip() for e in filenames]
     
     pool = Pool(threads)
+    if outfolder is not None:
+        os.makedirs(outfolder)
     
     if outfolder is None:
         mapBaseInts = pool.starmap(read2Int8, [(e, strand, changeGap,None) for e in filenames])
@@ -131,6 +134,118 @@ def loadMapBinaries(filenames, threads=16):
     pool.close()
     pool.join()
     return results
+
+def npInt8toFasta(npInt8, npFilter=None, header=None,outfile=None):
+    '''
+    npInt8 is npInt8 of map file, or a filename of npInt8 file
+    npFilter is numpy array the same length with npInt8 or a file of numpy array binary which determines sites to keep in npInt8
+        if npFilter is None, keep all sites
+    if outfile is None, return a str of fasta format
+    else, write fasta seq to outfile
+    if header is None:
+        if outfile is not None:
+            header = basename of outfile
+        else:
+            header = 'seq'
+    '''
+    if header is None:
+        if outfile is not None:
+            header = os.path.basename(outfile)
+        else:
+            header = 'seq'
+    
+    if isinstance(npInt8, str):
+        npInt8 = loadMapBinary(npInt8)
+    
+    if not isinstance(npInt8, np.ndarray):
+        print('something wrong with the input format of npInt8, return None')
+        return None
+    
+    if npFilter is None:
+        seq = npInt8toSeq(npInt8)
+    else:
+        if isinstance(npFilter,str):
+            npFilter = loadMapBinary(npFilter)
+        if not isinstance(npFilter, np.ndarray):
+            print('something wrong with the input format of npFilter, return None')
+            return None
+        seq = npInt8toSeq(npInt8[npFilter])
+    
+    fasta = '>'+header+'\n' + seq+'\n'
+    if outfile is None:
+        return fasta
+    with open(outfile,'w') as f:
+        f.write(fasta)
+    return None
+
+def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.split('_')[0], npFilter=None, npFilterFun=None, merged=True):
+    '''
+    npInt8s is a filename of file with npInt8 filenames. basename of the npInt8 filenames will be used as header or individual filenames for output
+            or a list of npInt8 filenames
+            or a list with two elements: header and npInt8 or filename of npInt8
+            or a dictionary with header as key, npInt8 or filename of npInt8 as key
+    threads is the number of CPUs to run the jobs
+    output is where to store the output. 
+        if merged is True, out is the filename to store the output
+        else, out is the outfolder to store the output files
+    headerFun is the function applied to headers for each sequence, default keep the part before '_'
+    npFilter is the numpy array to filter the input npInt8s, it can a str or np.array
+    npFilterFun is the function that will be applied to npFilter, to further process the fulter parameter
+    merged is True, output the sequences to a single file, else, to multiple files
+    '''
+    if merged:
+        print('output will be merged to a single file')
+    else:
+        print('output each sequence to an individual file')
+    
+    if isinstance(npInt8s, str):
+        print('npInt8s is a filename of file with npInt8 files')
+        npInt8s = open(npInt8s).readlines()
+        npInt8s = [e.strip() for e in npInt8s]
+        headers = [os.path.basename(e) for e in npInt8s]
+    
+    if isinstance(npInt8s, list):
+        if isinstance(npInt8s[0], str):
+            print('npInt8s is a list of npInt8 filenames')
+            headers = [os.path.basename(e) for e in npInt8s]
+        elif isinstance(npInt8s[0], list):
+            print('npInt8s is a list, each element with two elements')
+            headers = [e[0] for e in npInt8s]
+            npInt8s = [e[1] for e in npInt8s]
+        else:
+            print('npInt8 is a list, but not in the right format')
+    
+    if isinstance(npInt8s,dict):
+        print('npInt8 is a dictionary, key is the header for each seq, and value is npInt8 or file of npInt8')
+        headers = list(npInt8s.keys())
+        npInt8s = list(npInt8s.values())
+        
+    print('apply headerFun, header', headers[0],'become',headerFun(headers[0]))
+    headers = [headerFun(e) for e in headers]
+    
+    if npFilterFun is not None:
+        print('try to apply npFilterFun for npFilter')
+        if npFilter is None:
+            print('npFilter is None, keep all sites')
+        else:
+            npFilter = npFilterFun(npFilter)
+            print('after applying npFilterFun,', npFilter.astype(bool).sum(), 'sites left')
+    
+    pool = Pool(threads)
+    if not merged:
+        pool.starmap(npInt8toFasta, [[npInt8, npFilter, header, os.path.join(output,header)] for npInt8,header in zip(npInt8s,headers)])
+    if merged:
+        fout = open(output,'w')
+        parameters = [[npInt8, npFilter, header, None] for npInt8,header in zip(npInt8s,headers)]
+        pars = np.array_split(parameters, int(np.ceil(len(parameters)/threads)))
+        for par in pars:
+            seqs = pool.starmap(npInt8toFasta,par)
+            for s in seqs:
+                fout.write(s)
+            seqs = ''
+        fout.close()
+    pool.close()
+    
 
 if __name__ == '__main__':
     pass
