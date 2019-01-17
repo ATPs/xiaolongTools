@@ -223,6 +223,10 @@ def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.sp
     print('apply headerFun, header', headers[0],'become',headerFun(headers[0]))
     headers = [headerFun(e) for e in headers]
     
+    if isinstance(npFilter,str):
+        print('npFilter is str, load it from file')
+        npFilter = loadMapBinary(npFilter)
+    
     if npFilterFun is not None:
         print('try to apply npFilterFun for npFilter')
         if npFilter is None:
@@ -246,6 +250,136 @@ def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.sp
         fout.close()
     pool.close()
     
+
+def mapFilestoFastas(mapFiles, strand = 0, threads=16, output='fasta', headerFun=lambda x:x.split('_')[0], npFilter=None, npFilterFun=None, merged=True):
+    '''
+    the same as npInt8stoFastas
+    mapFiles is a list of map files
+    '''
+    print('convert mapFiles to npInt8')
+    if type(mapFiles) is str:
+        mapFiles = open(mapFiles).readlines()
+        mapFiles = [e.strip() for e in mapFiles]
+        
+    npInt8s = read2Int8s(mapFiles,  strand=strand, changeGap=True, threads=threads, outfolder=None)
+    npInt8s = dict(zip(mapFiles, npInt8s))
+    print('extract sequence')
+    npInt8stoFastas(npInt8s=npInt8s, threads=threads, output=output, headerFun=headerFun, npFilter=npFilter, npFilterFun=npFilterFun, merged=merged)
+
+
+
+def npInt8toMultipleFasta(npInt8, header=None, npFilter=None, minlen='0'):
+    '''
+    npInt8 is npInt8 of map file, or a filename of npInt8 file
+    npFilter is dictionary with different fragment_id and sites belong to that fragments
+    header will be used as the fasta seq name
+    return a dictionary with keys in npFilter as key, and a 'fasta' str of nt/AA
+    if the str is shorter than minlen, do not include in the final result
+    '''
+    if header is None:
+        header = 'seq'
+    
+    if isinstance(npInt8, str):
+        npInt8 = loadMapBinary(npInt8)
+    if not isinstance(npInt8, np.ndarray):
+        print('something wrong with the input format of npInt8, return None')
+        return None
+    
+    if isinstance(npFilter,str):
+        npFilter = loadMapBinary(npFilter)
+    if not isinstance(npFilter, dict):
+        print('something wrong with the input format of npFilter, return None')
+        return None
+    
+    dc_seq = {}
+    for key in npFilter:
+        seq = npInt8toSeq(npInt8[npFilter[key]])
+        if len(seq) - seq.count('-') > minlen:
+            dc_seq[key] = '>'+header+'\n'+seq+'\n'
+    
+    return dc_seq
+
+def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lambda x:x.split('_')[0], npFilter=None, minlen=0):
+    '''
+    convert npInt8s to fasta sequences. Very similar to npInt8stoFastas. The difference is that here npFilter is a dictionary with key and sites to keep. Thus, the ouput will be multiple files, each with the key as filename
+    
+    npFilter is a str of binary files of a dictionary, or a dictionary
+    
+    npInt8s is a filename of file with npInt8 filenames. basename of the npInt8 filenames will be used as header or individual filenames for output
+            or a list of npInt8 filenames
+            or a list with two elements: header and npInt8 or filename of npInt8
+            or a dictionary with header as key, npInt8 or filename of npInt8 as key
+    threads is the number of CPUs to run the jobs
+    outputfolder is where the files will be stored
+    outputfolder should be empty.
+    headerFun is the function applied to headers for each sequence, default keep the part before '_'
+    npFilter is the numpy array to filter the input npInt8s, it can a str or np.array
+    '''
+    
+    if isinstance(npInt8s, str):
+        print('npInt8s is a filename of file with npInt8 files')
+        npInt8s = open(npInt8s).readlines()
+        npInt8s = [e.strip() for e in npInt8s]
+        headers = [os.path.basename(e) for e in npInt8s]
+    
+    if isinstance(npInt8s, list):
+        if isinstance(npInt8s[0], str):
+            print('npInt8s is a list of npInt8 filenames')
+            headers = [os.path.basename(e) for e in npInt8s]
+        elif isinstance(npInt8s[0], list):
+            print('npInt8s is a list, each element with two elements')
+            headers = [e[0] for e in npInt8s]
+            npInt8s = [e[1] for e in npInt8s]
+        else:
+            print('npInt8 is a list, but not in the right format')
+    
+    if isinstance(npInt8s,dict):
+        print('npInt8 is a dictionary, key is the header for each seq, and value is npInt8 or file of npInt8')
+        headers = list(npInt8s.keys())
+        npInt8s = list(npInt8s.values())
+        
+    print('apply headerFun, header', headers[0],'become',headerFun(headers[0]))
+    headers = [headerFun(e) for e in headers]
+    
+    if isinstance(npFilter,str):
+        print('npFilter is str, load it from file')
+        npFilter = loadMapBinary(npFilter)
+    if isinstance(npFilter,dict):
+        print('now npFilter is a dictionary, will output',len(npFilter),'files')
+    else:
+        print('the format of npFilter is wrong')
+        return None
+    
+    #check if outputfolder is empty
+    if len(os.listdir(outputfolder)) != 0:
+        print('outputfolder is not empty. will not run')
+        return None
+    # make outputfolder if not exist
+    if not os.path.exists(outputfolder):
+        os.makedirs(outputfolder)
+    #create dc_output
+    dc_output = {k:open(os.path.join(outputfolder,k), 'a') for k in npFilter}
+    
+    #create parameters
+    ls_params = []
+    for npInt8, header in zip(npInt8s, headers):
+        ls_params.append([npInt8, header, npFilter, minlen])
+    
+    #split ls_params to several batches
+    lsls_params = np.array_split(ls_params, int(np.ceil(len(ls_params/threads))))
+    
+    pool = Pool(threads)
+    for batch_n, _ls_params in enumerate(lsls_params):
+        results = pool.starmap(npInt8toMultipleFasta, _ls_params)
+        for result in results:
+            for key,value in result:
+                dc_output[key].write(value)
+        print('processing batch', batch_n, 'of', len(lsls_params), 'batches')
+    pool.close()
+    
+    for values in dc_output:
+        values.close()
+    print('done')
 
 if __name__ == '__main__':
     pass

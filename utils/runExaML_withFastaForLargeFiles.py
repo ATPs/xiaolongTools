@@ -56,15 +56,15 @@ def runExaML(filename, referenceTree=None, threads=320, maxjobsperNode = 0,which
         t.populate(len(leafnames),names_library=leafnames)
         t.write(outfile=referenceTree)
         
-    #delete .ExaML if exist
-    file_ExaML = basename + '.ExaML'
-    if os.path.exists(file_ExaML):
-        os.remove(file_ExaML)
+    file_binary = basename + '.binary'
     
     #run ExaML
     os.system('module load openmpi/intel/3.1.1')
     if maxjobsperNode == 0:
-        commandline = 'cd {folder} && {ExaML_parser} -s {basename}.ExaML -n {basename} -m DNA  && mpirun -np {threads} {ExaML} -m GAMMA -t {referenceTree} -s {basename}.binary -n {basename}'.format(ExaML_parser=ExaML_parser,ExaML=ExaML[whichExaml], folder=folder,basename=basename, referenceTree=referenceTree, threads=threads)
+        if not os.path.exists(file_binary):
+            commandline = 'cd {folder} && {ExaML_parser} -s {basename}.ExaML -n {basename} -m DNA  && mpirun -np {threads} {ExaML} -m GAMMA -t {referenceTree} -s {basename}.binary -n {basename}'.format(ExaML_parser=ExaML_parser,ExaML=ExaML[whichExaml], folder=folder,basename=basename, referenceTree=referenceTree, threads=threads)
+        else:
+            commandline = 'cd {folder} && mpirun -np {threads} {ExaML} -m GAMMA -t {referenceTree} -s {basename}.binary -n {basename}'.format(ExaML_parser=ExaML_parser,ExaML=ExaML[whichExaml], folder=folder,basename=basename, referenceTree=referenceTree, threads=threads)
     else:
         commandline = 'cd {folder} && {ExaML_parser} -s {basename}.ExaML -n {basename} -m DNA  && mpirun -np {threads} -npernode {maxjobsperNode} {ExaML} -m GAMMA -t {referenceTree} -s {basename}.binary -n {basename}'.format(ExaML_parser=ExaML_parser,ExaML=ExaML[whichExaml], folder=folder,basename=basename, referenceTree=referenceTree, threads=threads,maxjobsperNode=maxjobsperNode)
     print(commandline)

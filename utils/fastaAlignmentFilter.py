@@ -43,7 +43,8 @@ def readFasta2np2d(filename,threads=16):
     ls_seqs = [str(e.seq) for e in ls_seqs]
     npInt8seqs = seqs2npInt8(ls_seqs,threads=threads)
     return ls_names,npInt8seqs
-def filterSites(np2d, baseKeepMinCount, maxGapCount):
+
+def filterSites(np2d, baseKeepMinCount, maxGapCount,minBaseType):
     '''
     np2d is a alignment same as npInt8seqs, alignment coding in np.ndarray
     filter each site based on baseKeepMinCount and maxGapCount
@@ -68,12 +69,12 @@ def filterSites(np2d, baseKeepMinCount, maxGapCount):
             baseCount = Counter(a)
             if baseCount[45]<maxGapCount:
                 if 45 in baseCount:
-                    if len(baseCount) > 2:
+                    if len(baseCount) > 1+minBaseType:
                         keep.append(n)
                     else:
                         sites_only_onebase += 1
                 else:
-                    if len(baseCount) > 1:
+                    if len(baseCount) > minBaseType:
                         keep.append(n)
                     else:
                         sites_only_onebase += 1
@@ -81,7 +82,7 @@ def filterSites(np2d, baseKeepMinCount, maxGapCount):
                 sites_further_removed += 1
         else:
             sites_initial_removed += 1
-    print(len(keep), 'sites keep from totally', seqlen,'sites. initial remove', sites_initial_removed,'sites, then ', sites_changed, 'sites were changed.', sites_further_removed,'were further removed based on gap.', sites_only_onebase, 'sites removed as there is only one kind of bases')
+    print(len(keep), 'sites keep from totally', seqlen,'sites. initial remove based on gap', sites_initial_removed,'sites, then ', sites_changed, 'sites were changed.', sites_further_removed,'were further removed based on gap.', sites_only_onebase, 'sites removed as there is <={} kind of bases'.format(minBaseType))
     return np2d[:,keep]
 
 
@@ -91,7 +92,7 @@ def filterSites(np2d, baseKeepMinCount, maxGapCount):
 #filename = '/work/archive/biophysics/Nick_lab/shared/Xiaolong/20181010Tree/20181010junoniaSeq_z'
 #outfile = '/work/archive/biophysics/Nick_lab/shared/Xiaolong/20181010Tree/20181010junoniaSeq_z.filter'
 
-def fastaAlignmentFilter(filename, outfile=None, threads = 16, baseKeepMinCount = 10, minNonGapRatio = 0.8):
+def fastaAlignmentFilter(filename, outfile=None, threads = 16, baseKeepMinCount = 10, minNonGapRatio = 0.8,minBaseType=0):
     '''
     filename is a input of fasta alignment, output a file filter baseKeepMinCount and minNonGapRatio
     if outfile is None, outfile = filename+'.filter'
@@ -107,7 +108,7 @@ def fastaAlignmentFilter(filename, outfile=None, threads = 16, baseKeepMinCount 
     ls_npInt8seqs = [npInt8seqs[:,i:i+step] for i in range(0,seqlen,step)]
     # filter sites
     pool = Pool(threads)
-    ls_npInt8seqsKeep = pool.starmap(filterSites,[[e, baseKeepMinCount, maxGapCount] for e in ls_npInt8seqs])
+    ls_npInt8seqsKeep = pool.starmap(filterSites,[[e, baseKeepMinCount, maxGapCount, minBaseType] for e in ls_npInt8seqs])
     pool.close()
     npInt8seqsKeep = np.concatenate(ls_npInt8seqsKeep,axis=1)
     ls_seqsKeep = np2dInt8ToSeqs(npInt8seqsKeep, threads=threads)
@@ -119,7 +120,7 @@ def fastaAlignmentFilter(filename, outfile=None, threads = 16, baseKeepMinCount 
     print('done',filename)
     return None
 
-description = '''filename is a input of fasta alignment, output a file filter baseKeepMinCount and minNonGapRatio. Also, only keep sites with information, which means that there should be more than 1 ind of bases per site
+description = '''filename is a input of fasta alignment, output a file filter baseKeepMinCount and minNonGapRatio. bases type at each position is >then minBaseType (gap is not a base). If set to 1, there are at least two kind of bases at each site. default = 0. If set to 1, only keep sites with information, which means that there should be more than 1 ind of bases per site
     if outfile is None, outfile = filename+'.filter'
 default
 #threads = 16
@@ -135,8 +136,9 @@ if __name__ == '__main__':
     parser.add_argument('-t','--threads', help = 'threads, number of CPUs to use. default=16', default=16,type=int)
     parser.add_argument('-b','--baseKeepMinCount', help = 'baseKeepMinCount, for each site, keep the base if the base cout is greater than baseKeepMinCount. default=10', default=10,type=int)
     parser.add_argument('-g','--minNonGapRatio', help = 'minNonGapRatio, keep one site only if the number of non-gap bases is greater than this ratio. default = 0.8', default=0.8,type=float)
+    parser.add_argument('-B','--minBaseType', help = 'bases type at each position is > minBaseType (gap is not a base). If set to 1, there are at least two kind of bases at each site. default = 0', default=0,type=float)
     f = parser.parse_args()
-    fastaAlignmentFilter(filename=f.input, outfile=f.outfile, threads = f.threads, baseKeepMinCount = f.baseKeepMinCount, minNonGapRatio = f.minNonGapRatio)
+    fastaAlignmentFilter(filename=f.input, outfile=f.outfile, threads = f.threads, baseKeepMinCount = f.baseKeepMinCount, minNonGapRatio = f.minNonGapRatio,minBaseType=f.minBaseType)
 
 
 

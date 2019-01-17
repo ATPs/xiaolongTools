@@ -1,5 +1,5 @@
 
-filename = r"C:\Users\K\OneDrive\Lab\UTSW\2018JunoniaProject_Xiaolong\20180918PhyloTree\20181010junoniaSeq_CDS_split.RAxMLbestTree.sum.newick.renamed.svg"
+filename = r"C:\Users\ATPs\OneDrive\Lab\UTSW\2018Calephelis\phylo\mitochondria\Calephelis266.mito.newick.renamed-NEXUS.tre.svg"
 
 from bs4 import BeautifulSoup
 soup = BeautifulSoup(open(filename).read(),'lxml')
@@ -19,7 +19,14 @@ def isfloat(element):
 
 txt_label = [e for e in txts if not isfloat(e.text)]
 
-ls_labels = [[e.text,float(e.attrs['transform'].split(',')[-1][:-1])] for e in txt_label]
+print('number of labels', len(txt_label),'\n\n\n')
+
+ls_labels = []
+for e in txt_label:
+    if 'transform' in e.attrs:
+        ls_labels.append([e.text, float(e.attrs['transform'].split(',')[-1][:-1])])
+    elif 'transform' in e.parent.attrs:
+        ls_labels.append([e.text, float(e.parent.attrs['transform'].split(',')[-1][:-1])])
 ls_labels.sort(key=lambda x:x[1])
 ls_samples = ['S'+e[0].split('_')[0] for e in ls_labels]
 print('\n'.join(ls_samples))

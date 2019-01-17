@@ -2,9 +2,8 @@ import os
 import shutil
 import sys
 
-filename = sys.argv[1]
 
-def runRAxMLForIndividualSmallFiles(filename, threads=1):
+def runRAxMLForIndividualSmallFiles(filename, threads=1, bootstrap=1):
     '''
     filename is the full path of a aligned fasta file
     output and save the best tree in a folder by adding '.RAxMLbestTree' to the folder name.
@@ -18,19 +17,23 @@ def runRAxMLForIndividualSmallFiles(filename, threads=1):
         os.makedirs(outfolder)
     
     basefolder = os.path.basename(folder)
-    workFolder = '/dev/shm/'+basefolder + name
-    os.system('rm -rf /dev/shm/*')
+    workFolder = folder + '.Temp/'+basefolder + name
     if os.path.exists(workFolder):
         shutil.rmtree(workFolder)
     if not os.path.exists(workFolder):
         os.makedirs(workFolder)
     os.chdir(workFolder)
     shutil.copy(filename,'./')
-    commandline = '/home2/s185491/p/raxml/standard-RAxML-master/raxmlHPC-PTHREADS-SSE3 -m GTRGAMMA -p 234 -s {name} -n {name} -T {threads}'.format(name=name,threads=threads)
+    commandline = '/home2/s185491/p/raxml/standard-RAxML-master/raxmlHPC-PTHREADS-SSE3 -m GTRGAMMA -p 234 -s {name} -n {name} -T {threads} -N {bootstrap} -f a -x 1989'.format(name=name,threads=threads,bootstrap=bootstrap) # -f a stands for rapid boostrap -x is required for rapid bootstrap to set radom number
     os.system(commandline)
-    shutil.copy('RAxML_bestTree.' + name, outfolder + name)
+    if os.path.exists('RAxML_bipartitions.'+name):
+        shutil.copy('RAxML_bipartitions.'+name, outfolder + name)
+    else:
+        shutil.copy('RAxML_bestTree.' + name, outfolder + name)
     shutil.rmtree(workFolder)
     print('done for', name)
+
+
 
 description = '''
     filename is the full path of a aligned fasta file
@@ -44,6 +47,7 @@ if __name__ == '__main__':
     print(description)
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-i','--input', help = 'input file storing the location of aligned fasta file', required=True)
-    parser.add_argument('-T', '--threads',help = 'number of threads to run RAxML', default = 1)
+    parser.add_argument('-T', '--threads',help = 'number of threads to run RAxML, default 1', default = 1)
+    parser.add_argument('-N', '--bootstrap',help = 'number of bootstrap test, default 1, no testing', default = 1)
     f = parser.parse_args()
-    runRAxMLForIndividualSmallFiles(f.input, threads=f.threads)
+    runRAxMLForIndividualSmallFiles(f.input, threads=f.threads, bootstrap=f.bootstrap)

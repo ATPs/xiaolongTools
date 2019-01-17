@@ -1,0 +1,49 @@
+KEY PARAMETERS FOR THE PROGRAM structure.  YOU WILL NEED TO SET THESE IN ORDER TO RUN THE PROGRAM.  VARIOUS OPTIONS CAN BE ADJUSTED IN THE FILE extraparams.
+
+"(int)" means that this takes an integer value.
+"(B)"   means that this variable is Boolean (ie insert 1 for True, and 0 for False)
+"(str)" means that this is a string (but not enclosed in quotes!) 
+
+Basic Program Parameters
+#define MAXPOPS    {MAXPOPS}      // (int) number of populations assumed 
+#define BURNIN    {BURNIN}   // (int) length of burnin period
+#define NUMREPS   {NUMREPS}   // (int) number of MCMC reps after burnin
+
+Input/Output files
+#define INFILE   {INFILE}   // (str) name of input data file
+#define OUTFILE  {OUTFILE}  //(str) name of output data file
+
+Data file format
+#define NUMINDS    {NUMINDS}     // (int) number of diploid individuals in data file
+#define NUMLOCI    {NUMLOCI}  // (int) number of loci in data file
+#define PLOIDY       {PLOIDY}    // (int) ploidy of data
+#define MISSING     {MISSING}    // (int) value given to missing genotype data
+#define ONEROWPERIND {ONEROWPERIND}    // (B) store data for individuals in a single line
+
+#define LABEL     {LABEL}     // (B) Input file contains individual labels
+#define POPDATA   {POPDATA}     // (B) Input file contains a population identifier
+#define POPFLAG   {POPFLAG}     // (B) Input file contains a flag which says whether to use popinfo when USEPOPINFO==1
+#define LOCDATA   {LOCDATA}     // (B) Input file contains a location identifier
+#define PHENOTYPE {PHENOTYPE}     // (B) Input file contains phenotype information
+#define EXTRACOLS {EXTRACOLS}     // (int) Number of additional columns of data before the genotype data start.
+#define MARKERNAMES      {MARKERNAMES}  // (B) data file contains row of marker names
+#define RECESSIVEALLELES {RECESSIVEALLELES}  // (B) data file contains dominant markers (eg AFLPs) and a row to indicate which alleles are recessive
+#define MAPDISTANCES     {MAPDISTANCES}  // (B) data file contains row of map distances between loci
+
+Advanced data file options
+#define PHASED           {PHASED} // (B) Data are in correct phase (relevant for linkage model only)
+#define PHASEINFO        {PHASEINFO} // (B) the data for each individual contains a line indicating phase (linkage model)
+#define MARKOVPHASE      {MARKOVPHASE} // (B) the phase info follows a Markov model.
+#define NOTAMBIGUOUS  {NOTAMBIGUOUS} // (int) for use in some analyses of polyploid data
+
+Command line options:
+-m mainparams
+-e extraparams
+-s stratparams
+-K MAXPOPS 
+-L NUMLOCI
+-N NUMINDS
+-i input file
+-o output file
+-D SEED
+
