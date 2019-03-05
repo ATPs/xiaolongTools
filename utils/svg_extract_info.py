@@ -1,5 +1,5 @@
 
-filename = r"C:\Users\ATPs\OneDrive\Lab\UTSW\2018Calephelis\phylo\mitochondria\Calephelis266.mito.newick.renamed-NEXUS.tre.svg"
+filename = r"C:\Users\ATPs\Downloads\Newick Export.nwk.svg"
 
 from bs4 import BeautifulSoup
 soup = BeautifulSoup(open(filename).read(),'lxml')

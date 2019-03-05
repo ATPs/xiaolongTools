@@ -41,7 +41,7 @@ def runExaMLForIndividualSmallFiles(filename, refTree, threads=1):
         os.makedirs(outfolder)
     
     basefolder = os.path.basename(folder)
-    workFolder = '/dev/shm/'+basefolder + name
+    workFolder = folder + '.temp/'+basefolder + name
     if not os.path.exists(workFolder):
         os.makedirs(workFolder)
     os.chdir(workFolder)

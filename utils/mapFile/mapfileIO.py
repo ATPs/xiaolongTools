@@ -8,9 +8,11 @@ def fileLine(filename):
     return line numbers
     '''
     with open(filename) as f:
-        for i, l in enumerate(f):
-            pass
-    return i+1
+        txt = f.read()
+        n = txt.count('\n')
+        if txt[-1] != '\n':
+            n += 1
+    return n
 
 def read2Int8(filename,strand = 0,changeGap=True, outfile=None):
     '''
@@ -61,7 +63,8 @@ def read2Int8s(filenames, strand=0, changeGap=True, threads=16, outfolder=None):
     
     pool = Pool(threads)
     if outfolder is not None:
-        os.makedirs(outfolder)
+        if not os.path.exists(outfolder):
+            os.makedirs(outfolder)
     
     if outfolder is None:
         mapBaseInts = pool.starmap(read2Int8, [(e, strand, changeGap,None) for e in filenames])
@@ -161,11 +164,12 @@ def npInt8toFasta(npInt8, npFilter=None, header=None,outfile=None):
         print('something wrong with the input format of npInt8, return None')
         return None
     
+    if isinstance(npFilter,str):
+        npFilter = loadMapBinary(npFilter)
+    
     if npFilter is None:
         seq = npInt8toSeq(npInt8)
     else:
-        if isinstance(npFilter,str):
-            npFilter = loadMapBinary(npFilter)
         if not isinstance(npFilter, np.ndarray):
             print('something wrong with the input format of npFilter, return None')
             return None
@@ -208,12 +212,13 @@ def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.sp
         if isinstance(npInt8s[0], str):
             print('npInt8s is a list of npInt8 filenames')
             headers = [os.path.basename(e) for e in npInt8s]
-        elif isinstance(npInt8s[0], list):
+        elif isinstance(npInt8s[0], list) or isinstance(npInt8s[0], tuple):
             print('npInt8s is a list, each element with two elements')
             headers = [e[0] for e in npInt8s]
             npInt8s = [e[1] for e in npInt8s]
         else:
             print('npInt8 is a list, but not in the right format')
+            return None
     
     if isinstance(npInt8s,dict):
         print('npInt8 is a dictionary, key is the header for each seq, and value is npInt8 or file of npInt8')
@@ -235,6 +240,11 @@ def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.sp
             npFilter = npFilterFun(npFilter)
             print('after applying npFilterFun,', npFilter.astype(bool).sum(), 'sites left')
     
+    import uuid
+    file_shared_variables_in_memory = '/dev/shm/' + str(uuid.uuid4())
+    with open(file_shared_variables_in_memory,'wb') as f:
+        pickle.dump(npFilter, f)
+    npFilter = file_shared_variables_in_memory
     pool = Pool(threads)
     if not merged:
         pool.starmap(npInt8toFasta, [[npInt8, npFilter, header, os.path.join(output,header)] for npInt8,header in zip(npInt8s,headers)])
@@ -243,13 +253,14 @@ def npInt8stoFastas(npInt8s, threads=16, output='fasta', headerFun=lambda x:x.sp
         parameters = [[npInt8, npFilter, header, None] for npInt8,header in zip(npInt8s,headers)]
         pars = np.array_split(parameters, int(np.ceil(len(parameters)/threads)))
         for par in pars:
+            par = [list(e) for e in par]
             seqs = pool.starmap(npInt8toFasta,par)
             for s in seqs:
                 fout.write(s)
             seqs = ''
         fout.close()
     pool.close()
-    
+    os.remove(npFilter)
 
 def mapFilestoFastas(mapFiles, strand = 0, threads=16, output='fasta', headerFun=lambda x:x.split('_')[0], npFilter=None, npFilterFun=None, merged=True):
     '''
@@ -268,7 +279,7 @@ def mapFilestoFastas(mapFiles, strand = 0, threads=16, output='fasta', headerFun
 
 
 
-def npInt8toMultipleFasta(npInt8, header=None, npFilter=None, minlen='0'):
+def npInt8toMultipleFasta(npInt8, header=None, npFilter=None, minlen=0):
     '''
     npInt8 is npInt8 of map file, or a filename of npInt8 file
     npFilter is dictionary with different fragment_id and sites belong to that fragments
@@ -279,27 +290,36 @@ def npInt8toMultipleFasta(npInt8, header=None, npFilter=None, minlen='0'):
     if header is None:
         header = 'seq'
     
+    if isinstance(npFilter,str):
+        print('npFilter is str, load it from file')
+        npFilter = loadMapBinary(npFilter)
+    if isinstance(npFilter,dict):
+        print('now npFilter is a dictionary, will output',len(npFilter),'files')
+    else:
+        print('the format of npFilter is wrong. npFilter type is',type(npFilter))
+        return None
+    
     if isinstance(npInt8, str):
         npInt8 = loadMapBinary(npInt8)
     if not isinstance(npInt8, np.ndarray):
         print('something wrong with the input format of npInt8, return None')
         return None
     
-    if isinstance(npFilter,str):
-        npFilter = loadMapBinary(npFilter)
-    if not isinstance(npFilter, dict):
-        print('something wrong with the input format of npFilter, return None')
-        return None
-    
     dc_seq = {}
     for key in npFilter:
         seq = npInt8toSeq(npInt8[npFilter[key]])
-        if len(seq) - seq.count('-') > minlen:
+        seqlen = len(seq)
+        mlen = minlen
+        if mlen <= 1:
+            mlen = seqlen * mlen
+        if seqlen - seq.count('-') > mlen:
             dc_seq[key] = '>'+header+'\n'+seq+'\n'
+        else:
+            dc_seq[key] = ''
     
     return dc_seq
 
-def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lambda x:x.split('_')[0], npFilter=None, minlen=0):
+def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lambda x:x.split('_')[0], npFilter=None, minlen=0, minseq = 0):
     '''
     convert npInt8s to fasta sequences. Very similar to npInt8stoFastas. The difference is that here npFilter is a dictionary with key and sites to keep. Thus, the ouput will be multiple files, each with the key as filename
     
@@ -312,8 +332,12 @@ def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lam
     threads is the number of CPUs to run the jobs
     outputfolder is where the files will be stored
     outputfolder should be empty.
-    headerFun is the function applied to headers for each sequence, default keep the part before '_'
-    npFilter is the numpy array to filter the input npInt8s, it can a str or np.array
+    
+    minlen is the minimal length of a sequences to be included in the result. Default 0, all sequences will be kept.
+    if minlen <= 1: minlen is a ratio of the sequence
+    
+    minseq is the minimal sequences required to write a file. Default 0, write a file for all fragments in npFilter.
+    if minseq <=1: minseq = number_of_sequences * minseq
     '''
     
     if isinstance(npInt8s, str):
@@ -337,48 +361,45 @@ def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lam
         print('npInt8 is a dictionary, key is the header for each seq, and value is npInt8 or file of npInt8')
         headers = list(npInt8s.keys())
         npInt8s = list(npInt8s.values())
-        
-    print('apply headerFun, header', headers[0],'become',headerFun(headers[0]))
-    headers = [headerFun(e) for e in headers]
     
-    if isinstance(npFilter,str):
-        print('npFilter is str, load it from file')
-        npFilter = loadMapBinary(npFilter)
-    if isinstance(npFilter,dict):
-        print('now npFilter is a dictionary, will output',len(npFilter),'files')
-    else:
-        print('the format of npFilter is wrong')
-        return None
+    print('apply headerFun, header', headers[0],'become',headerFun(headers[0]))
+    if callable(headerFun):
+        headers = [headerFun(e) for e in headers]
+
+    # make outputfolder if not exist
+    if not os.path.exists(outputfolder):
+        print('outputfolder does not exist, create one')
+        os.makedirs(outputfolder)
     
     #check if outputfolder is empty
     if len(os.listdir(outputfolder)) != 0:
         print('outputfolder is not empty. will not run')
         return None
-    # make outputfolder if not exist
-    if not os.path.exists(outputfolder):
-        os.makedirs(outputfolder)
-    #create dc_output
-    dc_output = {k:open(os.path.join(outputfolder,k), 'a') for k in npFilter}
     
     #create parameters
     ls_params = []
     for npInt8, header in zip(npInt8s, headers):
         ls_params.append([npInt8, header, npFilter, minlen])
     
-    #split ls_params to several batches
-    lsls_params = np.array_split(ls_params, int(np.ceil(len(ls_params/threads))))
-    
     pool = Pool(threads)
-    for batch_n, _ls_params in enumerate(lsls_params):
-        results = pool.starmap(npInt8toMultipleFasta, _ls_params)
-        for result in results:
-            for key,value in result:
-                dc_output[key].write(value)
-        print('processing batch', batch_n, 'of', len(lsls_params), 'batches')
+    ls_results = pool.starmap(npInt8toMultipleFasta, ls_params)
     pool.close()
     
-    for values in dc_output:
-        values.close()
+    #minseq filter
+    if minseq <= 1:
+        minseq = len(npInt8s) * minseq
+    #save the results
+    dc_results = {key:[] for key in ls_results[0]}
+    for result in ls_results:
+        for key in result:
+            dc_results[key].append(result[key])
+    for key, value in dc_results.items():
+        if len([e for e in value if e != '']) < minseq:
+            continue
+        value = ''.join(value)
+        if len(value) > 0:
+            open(os.path.join(outputfolder,key),'w').write(value)
+    
     print('done')
 
 if __name__ == '__main__':
