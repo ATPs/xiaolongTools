@@ -20,6 +20,14 @@ sumt;
 end;'''
 MB = '/home2/s185491/p/MrBayes/mb'
 
+
+TXT_BAYES='''begin mrbayes;
+mcmc Nruns=2 nchains=4 ngen=2000000 stoprule=yes stopval=0.001;
+sump;
+sumt;
+end;'''
+MB = '/home2/s185491/p/MrBayes/mb'
+
 def runMrBayes(file_in, folder_bayes = None, folder_newick = None, folder_temp = None):
     '''
     file_in is a input file in fasta format

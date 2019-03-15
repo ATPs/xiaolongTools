@@ -220,6 +220,5 @@ def combineMapSmallMem(filenames, outfile=None, method=0, AsOne=False):
     print('done')
     return None
 
-    
 if __name__ == '__main__':
     pass

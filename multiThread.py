@@ -47,6 +47,7 @@ def main(Args):
 
     for keys in threading_dict:
         threading_dict[keys].start()
+        time.sleep(1)
         while True:
             if threading.active_count() > thread_count:
                 time.sleep(2)

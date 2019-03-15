@@ -1,5 +1,5 @@
 
-filename = r"C:\Users\ATPs\Downloads\Newick Export.nwk.svg"
+filename = r"C:\Users\ATPs\OneDrive\Lab\UTSW\2018JunoniaProject_Xiaolong\20180918PhyloTree\20181010junoniaSeq_whole_max30Gap_split.RAxMLbestTree.sum.newick.renamed.svg"
 
 from bs4 import BeautifulSoup
 soup = BeautifulSoup(open(filename).read(),'lxml')
@@ -30,3 +30,6 @@ for e in txt_label:
 ls_labels.sort(key=lambda x:x[1])
 ls_samples = ['S'+e[0].split('_')[0] for e in ls_labels]
 print('\n'.join(ls_samples))
+
+open(r"C:\Users\ATPs\Downloads\temp.txt",'w',newline='\n').write('\n'.join(e[1:] for e in ls_samples))
+

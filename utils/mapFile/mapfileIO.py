@@ -319,7 +319,7 @@ def npInt8toMultipleFasta(npInt8, header=None, npFilter=None, minlen=0):
     
     return dc_seq
 
-def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lambda x:x.split('_')[0], npFilter=None, minlen=0, minseq = 0):
+def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lambda x:x.split('_')[0], npFilter=None, minlen=0, minseq = 0, essentialSamples = None):
     '''
     convert npInt8s to fasta sequences. Very similar to npInt8stoFastas. The difference is that here npFilter is a dictionary with key and sites to keep. Thus, the ouput will be multiple files, each with the key as filename
     
@@ -338,6 +338,7 @@ def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lam
     
     minseq is the minimal sequences required to write a file. Default 0, write a file for all fragments in npFilter.
     if minseq <=1: minseq = number_of_sequences * minseq
+    essentialSamples is a list or None. If None, no filter. Else, the essentialSamples have to exist in the final result
     '''
     
     if isinstance(npInt8s, str):
@@ -398,9 +399,29 @@ def npInt8stoMultipleFastas(npInt8s, threads=16, outputfolder='.', headerFun=lam
             continue
         value = ''.join(value)
         if len(value) > 0:
-            open(os.path.join(outputfolder,key),'w').write(value)
+            outfile = os.path.join(outputfolder,key)
+            open(outfile,'w').write(value)
     
-    print('done')
+    if essentialSamples is None:
+        print('done')
+        return None
+    
+    files = os.listdir(outputfolder)
+    removedCount = 0
+    from Bio import SeqIO
+    for file in files:
+        file = os.path.join(outputfolder,file)
+        dc = SeqIO.to_dict(SeqIO.parse(file,'fasta'))
+        for sample in essentialSamples:
+            if sample not in dc:
+                os.remove(file)
+                removedCount += 1
+                break
+    print(outputfolder,removedCount,'files removed from',len(files),'files')
+    return None
+
+    
+    
 
 if __name__ == '__main__':
     pass
