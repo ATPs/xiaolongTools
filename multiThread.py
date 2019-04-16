@@ -24,10 +24,14 @@ import glob
 
 def main(Args):
     if not Args:
-        print ("Usage: python <thread_count> <in_file>")
+        print ("Usage: python <thread_count> <in_file> [time_sleep of gap between jobs, optional. default 1 second]")
         sys.exit(0)
     thread_count = int(Args[0])
     in_file = Args[1]
+    if len(Args) == 3:
+        time_sleep = int(Args[2])
+    else:
+        time_sleep = 1
 
     class Worker(threading.Thread):
         def __init__(self, shell):
@@ -47,7 +51,7 @@ def main(Args):
 
     for keys in threading_dict:
         threading_dict[keys].start()
-        time.sleep(1)
+        time.sleep(time_sleep)
         while True:
             if threading.active_count() > thread_count:
                 time.sleep(2)
@@ -56,7 +60,7 @@ def main(Args):
 
 #########################################################################
 USAGE = """
-location <command> <thread_count> <in_file>
+location <command> <thread_count> <in_file> [time_sleep of gap between jobs, optional. default 1 second]
 Version: V1.0
   Date: Fri Oct 25 11:30:50 2013
         """
