@@ -17,6 +17,7 @@ import sys
 import psutil
 import glob
 import numpy as np
+import time
 
 
 
@@ -30,7 +31,7 @@ def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12
     srr = os.path.basename(file_bam).split('_')[0]
     
     #create folder
-    folder_work = temp_folder + srr
+    folder_work = os.path.join(temp_folder, srr)
     if os.path.exists(folder_work):
         os.system('rm -rf '+folder_work)
     os.makedirs(folder_work)
@@ -44,9 +45,9 @@ def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12
     #get the *.pre_geno.tsv file
     file_PreGeno = glob.glob(folder_combined+'/*.pre_geno.tsv')[0]
     
-    #split the *.pre_geno.tsv file to thread * 3 parts if total lines is greater than 100,000
+    #split the *.pre_geno.tsv file to thread * 3 parts if total lines is greater than 10,000
     ls_ref = open(file_PreGeno).readlines()
-    if len(ls_ref) > 100000:
+    if len(ls_ref) > 10000:
         parts = thread * 3
     else:
         parts = thread
@@ -64,8 +65,9 @@ def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12
     ls_cmds = [f'{JAVA} -jar {MELT} Genotype -h {genome} -bamfile {file_bam} -t {ME_MELT} -p {folder_work}/ref{i} -w {folder_work}/work{i}' for i in range(parts)]
     file_cmds = f'{folder_work}/cmds.txt'
     open(file_cmds,'w').write('\n'.join(ls_cmds))
-    os.system(f'python3 ~/w/GitHub/xiaolongTools/multiThread.py {thread} {file_cmds} 60')
+    os.system(f'python3 ~/w/GitHub/xiaolongTools/multiThreadComplex.py -t {thread} -i {file_cmds} -m 50')
         
+    time.sleep(5)# allow the hpc to finish writing the files.
     #combine the result
     folders_result = [f'{folder_work}/work{i}' for i in range(parts)]
     files_result = [glob.glob(f+'/*.tsv')[0] for f in folders_result]
