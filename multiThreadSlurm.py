@@ -125,6 +125,7 @@ def submitJobs(jobs, nodes=None, threads=1, time_sleep=60):
     else:
         for work_job in ls_jobs:
             while True:
+                time.sleep(0.2)
                 work_node = getWorkNode(ls_jobs, nodes, threads)
                 print(work_node)
                 if work_node is None:
