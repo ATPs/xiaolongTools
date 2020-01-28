@@ -12,7 +12,7 @@ def strIndi2list(individuals):
     return a list
     '''
     if isinstance(individuals, list):
-        return individuals
+        return [int(e) for e in individuals]
     if isinstance(individuals, str):
         l = individuals.split(',')
         result = []
@@ -29,37 +29,38 @@ def strIndi2list(individuals):
     return None
     
 
-def getAbnormalIndividual(result=[], positive=[], negative=[], neutral=[], neutralAsPositive=True):
+def processVAASTGenoType(genotype, positive=None, negative=None):
     '''
-    positive is a list of positive individuals, or a str
+    positive is a list of positive individuals, or a str like "3-5,7-9,11-12"
     negative is a list of negative individuals, or a str
-    neutral is a list of netral individuals, or a str
-    if neutralAsPositive, neutral is considered positive, otherwise as negative
-    result is a list of observed positives
-    print the description about the result, which is positive is missing in result and which negative is observed in results
-    for str of individuals, the str should be like "0,2,5-8", which means [0,2,5,6,7,8]
+    genotype is a genotype output of VAAST/pVAAST. it looks like "N|6|A:A|*:*;B|3-5,7-9,11-12|A:G|*:Q" or "0,2|-:C|-:G;3-6|-:C|-:G;7-8|-:C|-:G;10,12|-:C|-:G;13|-:C|-:G"
     '''
-    result = strIndi2list(result)
+    if positive is None: positive = []
+    if negative is None: negative = []
     positive = strIndi2list(positive)
     negative = strIndi2list(negative)
+    GTs = genotype.split(';')
+    detected_positive = []
+    unknown = []
+    for GT in GTs:
+        if GT.count('|') == 3:
+            individuals = GT.split('|')[1]
+            individuals = strIndi2list(individuals)
+            g = GT.split('|')[2]
+        if GT.count('|') == 2:
+            individuals = GT.split('|')[0]
+            g = GT.split('|')[1]
+        individuals = strIndi2list(individuals)
+        
+        if g == '^|^':
+            unknown += individuals
+        else:
+            detected_positive += individuals
+        
+    detected_negative = [e for e in positive + negative if e not in detected_positive + unknown]
+    true_positive = [e for e in detected_positive if e in positive]
+    false_positive = [e for e in detected_positive if e not in positive]
+    true_negative = [e for e in detected_negative if e in negative]
+    false_negative = [e for e in detected_negative if e not in negative]
     
-    # neutralAsPositive
-    if neutralAsPositive:
-        positive = positive + neutral
-    else:
-        negative = negative + neutral
-    
-    # false negative, positive missing in result
-    falseNegative = [e for e in positive if e not in result]
-    
-    # false positive, negative that in result
-    falsePositive = [e for e in negative if e in result]
-    
-    to_print = []
-    if len(falseNegative) !=0:
-        to_print.append('false negative' + str(falseNegative))
-    if len(falsePositive) !=0:
-        to_print.append('false positive' + str(falsePositive))
-    print(','.join(to_print))
-    
-    return falseNegative, falsePositive
+    return true_positive, true_negative, false_positive, false_negative, unknown
