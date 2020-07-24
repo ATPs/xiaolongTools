@@ -151,7 +151,7 @@ if __name__ == '__main__':
     print(description)
     parser = argparse.ArgumentParser(description=description)
     parser.add_argument('-i','--input', help = 'iinput is a file, each line is a job that can run directly', required=True)
-    parser.add_argument('-n','--nodes',help = '''a file, each line is a node name that can be accessed via ssh without a password, or a str of nodes description separated by ',', like elc-109;elc-110, or node074;node084; default None, work in current node''', default = None)
+    parser.add_argument('-n','--nodes',help = '''a file, each line is a node name that can be accessed via ssh without a password, or a str of nodes description separated by ',', like elc-109,elc-110, or node074,node084. default None, work in current node''', default = None)
     parser.add_argument('-t','--threads', help = 'number of jobs to run in each node, default 1', default = 1, type=int)
     parser.add_argument('-s','--sleep', help = 'sleep time about how often to check the running status, default 60', default = 60, type=int)
     f = parser.parse_args()
