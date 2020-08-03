@@ -38,7 +38,7 @@ def splitFasta2Nparts(seqs, N=10, output=None, method = 1):
     
     if method == 1:
         for n, seq in enumerate(seqs):
-            ls_fout[n%N].write('>'+seq.id+'\n'+str(seq.seq)+'\n')
+            ls_fout[n%N].write('>'+seq.description+'\n'+str(seq.seq)+'\n')
         for fout in ls_fout:
             fout.close()
         print('done!')

@@ -41,12 +41,15 @@ def submitJobs(jobs,N=1,user = 's185491', keyword='',timesleep=60):
     
     for job in jobs:
         while True:
-            jobsRunning = getNumberOfRunningJobs(user=user,keyword=keyword)
+            try:
+                jobsRunning = getNumberOfRunningJobs(user=user,keyword=keyword)
+            except:
+                jobsRunning = N
             if jobsRunning >= N:
                 time.sleep(timesleep)
             else:
                 break
-        os.system('qsub '+job)
+        os.system('sbatch '+job)
         print('submit job',job)
     
     print('done')

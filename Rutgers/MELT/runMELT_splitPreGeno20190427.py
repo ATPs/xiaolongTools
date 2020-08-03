@@ -21,7 +21,7 @@ import time
 
 
 
-def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12, ME_MELT = '~/p/MELT/MELTv2.1.5/me_refs/Hg38/ALU_MELT.zip'):
+def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12, ME_MELT = '~/p/MELT/MELTv2.1.5/me_refs/Hg38/ALU_MELT.zip', gap=60):
     '''
     run MELT GenoType for file_bam in temp_folder. 
     folder_combined is the output folder of the previous step
@@ -65,7 +65,7 @@ def run_MELT_SplitGene(file_bam, temp_folder, folder_combined, genome, thread=12
     ls_cmds = [f'{JAVA} -jar {MELT} Genotype -h {genome} -bamfile {file_bam} -t {ME_MELT} -p {folder_work}/ref{i} -w {folder_work}/work{i}' for i in range(parts)]
     file_cmds = f'{folder_work}/cmds.txt'
     open(file_cmds,'w').write('\n'.join(ls_cmds))
-    os.system(f'python3 ~/w/GitHub/xiaolongTools/multiThreadComplex.py -t {thread} -i {file_cmds} -m 50')
+    os.system(f'python3 ~/w/GitHub/xiaolongTools/multiThreadComplex.py -t {thread} -i {file_cmds} -m 50 -s {gap}')
         
     time.sleep(5)# allow the hpc to finish writing the files.
     #combine the result
@@ -92,5 +92,6 @@ if __name__ == '__main__':
     parser.add_argument('-g','--genome', help = 'genome location. genome need to be indexed', required=True)
     parser.add_argument('-m', '--mobile_element', default = '~/p/MELT/MELTv2.1.5/me_refs/Hg38/ALU_MELT.zip', help = '''location of mobile element, default = "~/p/MELT/MELTv2.1.5/me_refs/Hg38/ALU_MELT.zip" ''')
     parser.add_argument('-t','--thread', help = 'inumber of CPUs to use, default 12', type=int, default=12)
+    parser.add_argument('-a', '--gap', help ='gap of submitting small jobs. default:60', type=int, default=60)
     f = parser.parse_args()
-    run_MELT_SplitGene(file_bam=f.file_bam, temp_folder=f.temp_folder, folder_combined=f.folder_combined, genome=f.genome, ME_MELT=f.mobile_element,thread=f.thread)
+    run_MELT_SplitGene(file_bam=f.file_bam, temp_folder=f.temp_folder, folder_combined=f.folder_combined, genome=f.genome, ME_MELT=f.mobile_element,thread=f.thread, gap=f.gap)

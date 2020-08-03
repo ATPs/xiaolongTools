@@ -1,0 +1,1 @@
+﻿^+c:: Send {Shift Down}{F10}{Shift Up}+{p}
