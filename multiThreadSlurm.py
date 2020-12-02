@@ -95,10 +95,16 @@ def getWorkNode(ls_jobs, nodes, threads):
     for job in active_jobs:
         job_node = job.getName()
         dcNodes[job_node] += 1
-    for k,v in dcNodes.items():
-        if v < threads:
-            return k
-    return None
+    lsNodes = [k for k,v in dcNodes.items() if v < threads]
+    if len(lsNodes) == 0:
+        return None
+    from random import shuffle
+    shuffle(lsNodes)
+    return lsNodes[0]
+    # for k,v in dcNodes.items():
+    #     if v < threads:
+    #         return k
+    # return None
 
 def submitJobs(jobs, nodes=None, threads=1, time_sleep=60):
     '''
