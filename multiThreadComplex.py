@@ -48,7 +48,9 @@ def multiThread(jobs, thread_max=1, memory_min=None, time_sleep=2):
     time_sleep is the gap to wait to check number of running jobs and available memory
     '''
     thread_count = thread_max
-    if os.path.isdir(jobs):
+    if isinstance(jobs, list):
+        jobs = jobs
+    elif os.path.isdir(jobs):
         jobs = glob.glob(os.path.join(jobs,'*'))
     else:
         jobs = open(jobs).read().strip().split('\n')
@@ -79,7 +81,7 @@ if __name__ == '__main__':
     import argparse
     print(description)
     parser = argparse.ArgumentParser(description=description)
-    parser.add_argument('-i','--input', help = 'a file of jobs to run or a folder with job files', required=True)
+    parser.add_argument('-i','--input', help = 'a file of jobs to run or a folder with job files, or a Python list', required=True)
     parser.add_argument('-t','--threads', help = 'max threads to use, default 12', type=int, default=12)
     parser.add_argument('-m','--min_mem', help = 'minimum memory in GB to start a new thread, default 15', default=15, type=float)
     parser.add_argument('-s','--time_sleep', help = 'time_sleep is the gap to wait to check number of running jobs and available memory, default 30 seconds', default=30, type=float)
